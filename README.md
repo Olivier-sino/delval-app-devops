@@ -1,81 +1,157 @@
-# DELVEL LTD DevOps Demo
+# DELVEL LTD DevOps Project
 
-This repository shows a simple DevOps setup for a Node.js service:
-- Containerization with Docker and Docker Compose
-- Monitoring with Prometheus + Grafana
-- CI pipeline for build/test (GitHub Actions)
+This project demonstrates a practical DevOps workflow for a Node.js service using:
+- Docker containerization
+- Docker Compose orchestration
+- Prometheus and Grafana monitoring
+- GitHub Actions CI pipeline
 
-## Prerequisites
-- Docker and Docker Compose
-- Node.js (only needed for local non-Docker runs)
+## 1. Architecture
 
-## Project Structure
-- `src/server.js`: Node.js app with `/metrics`
-- `docker/Dockerfile`: Container build for the app
-- `docker-compose.yml`: Runs app + monitoring stack
+Services started by `docker compose`:
+- `web`: Node.js application (`src/server.js`)
+- `prometheus`: collects metrics from `web`
+- `grafana`: visualizes Prometheus metrics
+
+Monitoring data flow:
+1. App exposes metrics at `/metrics`
+2. Prometheus scrapes `web:3000/metrics` every 15s
+3. Grafana reads Prometheus and shows dashboards
+
+## 2. Repository Layout
+
+- `src/server.js`: app server and metrics endpoint
+- `docker/Dockerfile`: app image build
+- `docker-compose.yml`: multi-container runtime
 - `monitoring/prometheus.yml`: Prometheus scrape config
-- `monitoring/grafana/`: Grafana provisioning + dashboard JSON
-- `docs/monitoring.md`: Monitoring usage and report template
-- `docs/monitoring-report.md`: One-page report template
-- `docs/monitoring-diagram.md`: Data flow diagram
-- `docs/devops-cheatsheet.md`: Command + junior/senior summary
-- `.github/ci.yml`: CI pipeline definition
+- `monitoring/grafana/`: Grafana datasource + dashboard provisioning
+- `.github/workflows/ci.yml`: GitHub Actions CI workflow
+- `docs/monitoring.md`: monitoring usage notes
+- `docs/monitoring-report.md`: one-page report template
+- `docs/monitoring-diagram.md`: data-flow diagram
+- `docs/devops-cheatsheet.md`: key commands and explanations
 
-## Run Locally (Docker)
+## 3. Prerequisites
+
+Required:
+- Docker Engine + Docker Compose plugin
+- Git
+
+Optional (for local non-container run):
+- Node.js 18+
+- pnpm
+
+## 4. Run the Full Stack
+
+Start all services:
 ```bash
 docker compose up --build
 ```
 
-Services:
-- App: `http://localhost:3000`
-- Prometheus: `http://localhost:9090`
-- Grafana: `http://localhost:3001` (login `admin` / `admin`)
+Run in background:
+```bash
+docker compose up -d --build
+```
 
-Grafana will auto-load the dashboard named **DELVEL App Overview**.
-
-Stop:
+Stop services:
 ```bash
 docker compose down
 ```
 
-## Metrics Check
+Endpoints:
+- App: `http://localhost:3000`
+- Metrics endpoint: `http://localhost:3000/metrics`
+- Prometheus: `http://localhost:9090`
+- Grafana: `http://localhost:3001` (login: `admin` / `admin`)
+
+## 5. Verify Monitoring Works
+
+1. Check app metrics endpoint:
 ```bash
 curl http://localhost:3000/metrics
 ```
 
-If this returns metrics text, Prometheus should show the target as **UP**:
-- Prometheus UI → Status → Targets
+2. Check Prometheus target:
+- Open Prometheus UI
+- Go to `Status -> Targets`
+- Confirm `delvel-app` target is `UP`
 
-## CI Pipeline (GitHub Actions)
-The CI pipeline is defined in `.github/ci.yml` and runs on every push.
-Steps:
-1. Checkout code
+3. Check Grafana dashboard:
+- Open Grafana UI
+- Dashboard `DELVEL App Overview` should be available automatically
+
+## 6. CI/CD Setup on GitHub
+
+Current state:
+- CI is implemented in `.github/workflows/ci.yml`
+- Workflow runs on `push`
+- It installs dependencies and runs tests (`pnpm test`)
+
+Workflow steps:
+1. Checkout repository
 2. Setup Node.js 18
 3. Install pnpm
-4. Install dependencies
-5. Run tests (`pnpm test`)
+4. Install project dependencies
+5. Run tests
 
-To use CI:
-- Push this repo to GitHub
-- Ensure GitHub Actions is enabled
+To enable CI in your GitHub repo:
+1. Push this project to GitHub
+2. Open `Settings -> Actions -> General`
+3. Ensure GitHub Actions is allowed
+4. Push a commit and check the `Actions` tab
 
-## How This Meets the Tasks
-### Containerization
-- Dockerfile + Docker Compose run the app and monitoring tools in containers.
+CD status:
+- Full automatic deployment is not yet defined in workflow
+- Current project includes CI and local container deployment via Docker Compose
 
-### Monitoring
-- `prom-client` exposes `/metrics`
-- Prometheus scrapes metrics every 15s
-- Grafana visualizes the metrics
-- `docs/monitoring.md` shows how to analyze and report
+## 7. Typical Developer Workflow
 
-## Troubleshooting
-- First Docker build can be slow because it downloads the Node image.
-- If Prometheus target is DOWN, confirm `http://localhost:3000/metrics` works.
-- If Grafana login fails, restart containers and retry `admin/admin`.
+1. Develop feature locally
+2. Run tests locally (optional for quick check):
+```bash
+pnpm test
+```
+3. Build and run containers:
+```bash
+docker compose up --build
+```
+4. Verify app + metrics + dashboard
+5. Commit and push changes
+6. GitHub Actions CI validates the push
 
-## Notes
-This is a learning-friendly setup. It can be extended later with:
-- Database container
-- Alerts (email/Slack)
-- Deployment to cloud and auto-scaling
+## 8. Troubleshooting
+
+`TLS handshake timeout` when pulling images:
+- Cause: network instability while contacting Docker Hub
+- Fix:
+```bash
+docker pull prom/prometheus:latest
+docker pull grafana/grafana:latest
+```
+Then retry:
+```bash
+docker compose up --build
+```
+
+Slow first build:
+- First build downloads base images; later builds are faster due to cache
+
+Prometheus target is DOWN:
+- Confirm app is running
+- Confirm `http://localhost:3000/metrics` returns metrics
+
+Grafana login issue:
+- Use `admin/admin`
+- Restart stack if needed:
+```bash
+docker compose down
+docker compose up -d --build
+```
+
+## 9. What This Project Demonstrates
+
+- Containerized application delivery with Docker
+- Multi-service orchestration with Docker Compose
+- Practical monitoring strategy (collect, visualize, analyze, report)
+- CI automation with GitHub Actions
+
